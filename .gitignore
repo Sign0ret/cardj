@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ignore python virtualenv for python_api
+/python_api/.venv
+/python_api/**/__pycache__/

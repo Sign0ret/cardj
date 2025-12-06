@@ -1,0 +1,6 @@
+fastapi
+uvicorn[standard]
+requests
+numpy>=1.25.0
+google-genai
+furhat-remote-api
