@@ -1,4 +1,4 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -161,7 +161,20 @@ async def startup_event():
     manager.loop = asyncio.get_running_loop()
     # existing startup behavior (if any)...
     if os.environ.get("ENABLE_TERMINAL_INPUT", "0") == "1":
-        t = threading.Thread(target=terminal_repl_loop, args=(assistant,), daemon=True)
+        # Start a daemon thread that runs one interactive ask_mood() immediately
+        # (so you see "How do you feel today?" at startup), then drops into the REPL.
+        def _start_ask_then_repl():
+            try:
+                assistant.ask_mood()
+            except Exception as e:
+                print("startup ask_mood error:", e, file=sys.stderr)
+            # after the interactive flow returns, start the REPL loop
+            try:
+                terminal_repl_loop(assistant)
+            except Exception as e:
+                print("terminal_repl_loop error:", e, file=sys.stderr)
+
+        t = threading.Thread(target=_start_ask_then_repl, daemon=True)
         t.start()
 
 class RecommendRequest(BaseModel):
@@ -179,3 +192,13 @@ async def recommend(req: RecommendRequest):
     results = recommend_top_n(req.current, req.target, req.n, req.w, req.method, csv_path)
     # la función ya devuelve lista de dicts con los campos útiles
     return {"results": results}
+
+@app.post("/ask")
+async def http_ask():
+    """
+    Trigger assistant.ask_mood() in a background thread and return its result.
+    """
+    loop = asyncio.get_running_loop()
+    # run blocking ask_mood in executor so it doesn't block the event loop
+    result = await loop.run_in_executor(None, assistant.ask_mood)
+    return {"result": result}

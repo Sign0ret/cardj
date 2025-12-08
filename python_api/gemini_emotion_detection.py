@@ -79,7 +79,7 @@ class FurhatDrivingAssistant:
         self.emotion_labels = ["happy", "sad", "angry", "calm"]
         self.main_emotion = "happy"
         self.furhat = FurhatRemoteAPI("localhost")
-        self.furhat_remote_api_on = False # debug mode (if virtual robot is not connected)
+        self.furhat_remote_api_on = True # debug mode (if virtual robot is not connected)
         self.on_update: typing.Optional[typing.Callable[[dict], None]] = None
         self.init_gemini() # set instruction prompt
 
@@ -102,9 +102,10 @@ class FurhatDrivingAssistant:
 
         if self.furhat_remote_api_on:
             user_response = furhat.listen()
+            user_response = user_response.message.lower()  # normalize response
         else:
             user_response = input("Driver: ") # debug mode
-
+        print("Driver:", user_response)
         geminiResponse = self.chat.send_message([user_response]).text.strip()
         self.emotion_analysis(geminiResponse)
         print("(Furhat emotion detection:", self.main_emotion, ")")
@@ -154,7 +155,12 @@ class FurhatDrivingAssistant:
         question = "Do you feel " + main_emotion + " today?"
         print("Furhat: ", question)
 
-        response = input("Driver: ").lower()
+        if self.furhat_remote_api_on:
+            response = furhat.listen()
+            response = response.message.lower()  # normalize response
+        else:
+            response = input("Driver: ").lower()
+        print("Driver:", response)
     
         if not self.user_agrees(question, response): # Driver disagree with the emotion analysis
             self.extend_conversation()
@@ -169,17 +175,18 @@ class FurhatDrivingAssistant:
         question1 = random.choice(self.extend_questions)
         print(question1)
         if self.furhat_remote_api_on:
-            user_response1 = furhat.listen()
+            user_response1 = furhat.listen().message
         else:
             user_response1 = input("Driver:").lower() # debug mode
-
+        print("Driver:", user_response1)
         # Q2:print("Furhat: Q2:")
         question2 = random.choice(self.extend_questions)
         print(question2)
         if self.furhat_remote_api_on:
-            user_response2 = furhat.listen()
+            user_response2 = furhat.listen().message
         else:
             user_response2 = input("Driver:").lower() # debug mode
+        print("Driver:", user_response2)
 
         conversation1 = "Question1: " + question1 + " Response1: " + user_response1
         conversation2 = "Question2: " + question2 + " Response2: " + user_response2
