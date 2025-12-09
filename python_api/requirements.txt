@@ -4,3 +4,7 @@ requests
 numpy>=1.25.0
 google-genai
 furhat-remote-api
+fer
+opencv-python-headless
+matplotlib
+pillow
