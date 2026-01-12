@@ -10,7 +10,7 @@ import typing
 import asyncio
 import sys
 
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAlKkal-Lsg57jylWDzMhpvzylFzjCRzoU")  # Paste your API key here
+API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyCZf0JaVCpINh8VkYSCLY3Mvxg0tHohXII")  # Paste your API key here
 furhat = FurhatRemoteAPI("localhost")
 
 import random
@@ -98,6 +98,7 @@ class FurhatDrivingAssistant:
     # 主動詢問駕駛心情
     def ask_mood(self):
         question = "How do you feel today?" #First question
+        furhat.say(text=question, blocking=True)
         print("Furhat:", question)
 
         if self.furhat_remote_api_on:
@@ -154,6 +155,7 @@ class FurhatDrivingAssistant:
     def confirm_emotion(self, main_emotion):
         question = "Do you feel " + main_emotion + " today?"
         print("Furhat: ", question)
+        furhat.say(text=question, blocking=True)
 
         if self.furhat_remote_api_on:
             response = furhat.listen()
@@ -173,6 +175,7 @@ class FurhatDrivingAssistant:
 
         # Q1:print("Furhat: Q1:")
         question1 = random.choice(self.extend_questions)
+        furhat.say(text=question1, blocking=True)
         print(question1)
         if self.furhat_remote_api_on:
             user_response1 = furhat.listen().message
@@ -181,6 +184,7 @@ class FurhatDrivingAssistant:
         print("Driver:", user_response1)
         # Q2:print("Furhat: Q2:")
         question2 = random.choice(self.extend_questions)
+        furhat.say(text=question2, blocking=True)
         print(question2)
         if self.furhat_remote_api_on:
             user_response2 = furhat.listen().message
@@ -238,7 +242,18 @@ class FurhatDrivingAssistant:
         conversation = "Question: " + question + " Response: " + response
         geminiResponse = self.chat.send_message([conversation]).text.strip()
 
+    def askChangeMode(self):
+        question = 'Do you want to change mood?'
+        furhat.say(text=question, blocking=True)
+        if self.furhat_remote_api_on:
+            user_response = furhat.listen().message
+        else:
+            user_response = input("Driver:").lower() # debug mode
+        normalized_reply = user_response.strip().lower()
 
+        # rule-based check
+        rule_result = self.RULES.get(normalized_reply, None) # return None if there's no result
+        return rule_result # True: change mood, False: Don't change
     
 if __name__ == "__main__":
     assistant = FurhatDrivingAssistant()

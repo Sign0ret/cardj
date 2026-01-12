@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, WebSocket
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional, List
@@ -273,3 +273,28 @@ async def http_ask():
     # run blocking ask_mood in executor so it doesn't block the event loop
     result = await loop.run_in_executor(None, assistant.ask_mood)
     return {"result": result}
+
+
+@app.post("/ask-change-mode")
+async def http_ask_change_mode():
+    """
+    Trigger assistant.askChangeMode() (blocking) in an executor so it doesn't block
+    the event loop. Broadcasts the updated assistant+image state to websocket clients
+    and returns the boolean result (or None) as JSON.
+    """
+    loop = asyncio.get_running_loop()
+    try:
+        result = await loop.run_in_executor(None, assistant.askChangeMode)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"askChangeMode failed: {e}")
+
+    # broadcast updated combined state to connected websockets (best-effort)
+    image_state = detector.get_state() if detector else {"labels": DEFAULT_LABELS, "probs": [0.0] * len(DEFAULT_LABELS)}
+    combined = {"assistant": assistant.get_emotion_state(), "image": image_state}
+    try:
+        await manager.broadcast(combined)
+    except Exception:
+        # don't fail the request if broadcast fails
+        pass
+
+    return {"change": result}

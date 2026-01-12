@@ -9,7 +9,7 @@ export type AssistantState = {
 export default function useAssistantEmotion(wsUrl = "ws://localhost:8000/ws/emotion") {
   const [state, setState] = useState<AssistantState>(null);
   const wsRef = useRef<WebSocket | null>(null);
-
+  console.log("state", state);
   useEffect(() => {
     if (typeof window === "undefined") return;
 
