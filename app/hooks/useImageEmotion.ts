@@ -25,6 +25,9 @@ export default function useImageEmotion(
   const intervalRef = useRef<number | null>(null);
   const startedRef = useRef(false);
 
+  // paused flag controlled by events from UI (e.g. when doing ask-change-mode)
+  const pausedRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -91,6 +94,10 @@ export default function useImageEmotion(
     }
 
     const doCapture = async () => {
+      if (pausedRef.current) {
+        console.debug("doCapture skipped: paused");
+        return;
+      }
       try {
         console.debug("doCapture: POST /capture-image");
         const res = await fetch(`${apiBase}/capture-image`, { method: "POST" });
@@ -144,10 +151,32 @@ export default function useImageEmotion(
       }
     };
 
+    // pause/resume handlers need access to doCapture and startedRef
+    const onPause = () => {
+      pausedRef.current = true;
+      console.debug("image capture paused");
+    };
+    const onResume = () => {
+      pausedRef.current = false;
+      console.debug("image capture resumed");
+      if (startedRef.current) {
+        void (async () => {
+          try {
+            await doCapture();
+          } catch (e) {
+            /* ignore */
+          }
+        })();
+      }
+    };
+
+    window.addEventListener("assistant:pause-capture", onPause);
+    window.addEventListener("assistant:resume-capture", onResume);
+
     if (!startedRef.current) {
       startedRef.current = true;
-      doCapture(); // immediate first capture (optional)
-      intervalRef.current = window.setInterval(doCapture, intervalMs);
+      void doCapture(); // immediate first capture (optional)
+      intervalRef.current = window.setInterval(doCapture, intervalMs) as unknown as number;
     }
 
     return () => {
@@ -160,6 +189,8 @@ export default function useImageEmotion(
         wsRef.current = null;
       }
       startedRef.current = false;
+      window.removeEventListener("assistant:pause-capture", onPause);
+      window.removeEventListener("assistant:resume-capture", onResume);
     };
   }, [wsUrl, apiBase, captureIntervalMs]);
 

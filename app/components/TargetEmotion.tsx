@@ -21,14 +21,30 @@ export default function TargetEmotion() {
 
   async function handleChangeMood() {
     try {
+      // pause the image capture hook so terminal IO isn't contested
+      window.dispatchEvent(new CustomEvent("assistant:pause-capture"))
       setLoading(true)
-      // call the backend endpoint that triggers askChangeMode
-      await fetch(`http://localhost:8000/ask-change-mode`, { method: "POST" })
-      // state should update via websocket; no local state change required
+
+      const res = await fetch("http://localhost:8000/ask-change-mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        console.error(`HTTP ${res.status}: ${text}`)
+      } else {
+        const data = await res.json()
+        console.debug("ask-change-mode response:", data)
+        // frontend will receive updated state via websocket/useAssistantEmotion
+      }
     } catch (e) {
       console.error("ask-change-mode error", e)
     } finally {
       setLoading(false)
+      // resume image capture after interactive flow finishes
+      window.dispatchEvent(new CustomEvent("assistant:resume-capture"))
     }
   }
 
@@ -68,7 +84,6 @@ export default function TargetEmotion() {
               </div>
             ))}
           </div>
-          
         ) : (
           <div className="text-center py-4 text-gray-500">
             <div className="text-xs">⏳ Awaiting voice input...</div>

@@ -50,7 +50,7 @@ async def _random_dataset_loop(detector: ImageEmotionDetector, interval: float =
     while True:
         try:
             # run blocking detection in thread pool
-            state = await asyncio.to_thread(detector.capture_random_from_dataset)
+            state = await asyncio.to_thread(detector.predict_emotion_array)
             # optionally: log minimal info (no heavy printing)
             print("dataset detection:", state.get("source"), file=os.sys.stdout)
         except Exception as e:
@@ -187,7 +187,7 @@ async def capture_image():
     if detector is None:
         raise HTTPException(status_code=503, detail="Image detector not initialized yet")
     try:
-        img_state = await asyncio.to_thread(detector.capture_random_from_dataset)
+        img_state = await asyncio.to_thread(detector.predict_emotion_array)
     except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -273,28 +273,3 @@ async def http_ask():
     # run blocking ask_mood in executor so it doesn't block the event loop
     result = await loop.run_in_executor(None, assistant.ask_mood)
     return {"result": result}
-
-
-@app.post("/ask-change-mode")
-async def http_ask_change_mode():
-    """
-    Trigger assistant.askChangeMode() (blocking) in an executor so it doesn't block
-    the event loop. Broadcasts the updated assistant+image state to websocket clients
-    and returns the boolean result (or None) as JSON.
-    """
-    loop = asyncio.get_running_loop()
-    try:
-        result = await loop.run_in_executor(None, assistant.askChangeMode)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"askChangeMode failed: {e}")
-
-    # broadcast updated combined state to connected websockets (best-effort)
-    image_state = detector.get_state() if detector else {"labels": DEFAULT_LABELS, "probs": [0.0] * len(DEFAULT_LABELS)}
-    combined = {"assistant": assistant.get_emotion_state(), "image": image_state}
-    try:
-        await manager.broadcast(combined)
-    except Exception:
-        # don't fail the request if broadcast fails
-        pass
-
-    return {"change": result}
