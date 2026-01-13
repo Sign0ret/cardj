@@ -72,6 +72,35 @@ class FurhatDrivingAssistant:
             "Feeling low at the moment?"
         ]
     }
+    customGesture = {
+        "name":"SmileNod",
+        "frames":[
+            {
+            "time":[0.12, 0.52],
+            "persist":False, 
+            "params":{
+                "BROW_UP_LEFT":1,
+                "BROW_UP_RIGHT":1,
+                "SMILE_OPEN":0.4,
+                "SMILE_CLOSED":0.7
+                }
+            },
+            {
+            "time":[0.22, 0.42],
+            "persist":False, 
+            "params":{
+                "NECK_TILT": 10
+                }
+            },
+            {
+            "time":[2],
+            "persist":False,
+            "params":{
+                "reset":True
+                }
+            }],
+        "class":"furhatos.gestures.Gesture"
+    }
 
     def __init__(self):
         # keep probs as a numpy array consistently
@@ -80,6 +109,7 @@ class FurhatDrivingAssistant:
         self.main_emotion = "happy"
         self.furhat = FurhatRemoteAPI("localhost")
         self.furhat_remote_api_on = True # debug mode (if virtual robot is not connected)
+        self.gemini_on = True # debug mode (if gemini is out of token)
         self.on_update: typing.Optional[typing.Callable[[dict], None]] = None
         self.init_gemini() # set instruction prompt
 
@@ -99,6 +129,10 @@ class FurhatDrivingAssistant:
     def ask_mood(self):
         question = "How do you feel today?" #First question
         furhat.say(text=question, blocking=True)
+        furhat.gesture(name="BigSmile")
+        furhat.gesture(name="Thoughtful")
+        furhat.gesture(name="Shake")
+        furhat.gesture(name="Roll")
         print("Furhat:", question)
 
         if self.furhat_remote_api_on:
@@ -107,7 +141,19 @@ class FurhatDrivingAssistant:
         else:
             user_response = input("Driver: ") # debug mode
         print("Driver:", user_response)
-        geminiResponse = self.chat.send_message([user_response]).text.strip()
+        if self.gemini_on:
+            geminiResponse = self.chat.send_message([user_response]).text.strip()
+        else:
+            geminiResponse ="""
+            {
+                "emotion_possibility": {
+                    "happy": 0.1,
+                    "calm": 0.3,
+                    "angry": 0.05,
+                    "sad": 0.55
+                }
+            }
+            """
         self.emotion_analysis(geminiResponse)
         print("(Furhat emotion detection:", self.main_emotion, ")")
         # furhat.say(text = response, blocking = True) # Fix untill furhat can be connected successfully
@@ -156,6 +202,14 @@ class FurhatDrivingAssistant:
         question = "Do you feel " + main_emotion + " today?"
         print("Furhat: ", question)
         furhat.say(text=question, blocking=True)
+        if main_emotion == 'happy':
+            furhat.gesture(name="BigSmile")
+        elif main_emotion == 'sad':
+            furhat.gesture(name="Thoughtful")
+        elif main_emotion == 'angry':
+            furhat.gesture(name="Shake")
+        else:
+            furhat.gesture(name="Roll")
 
         if self.furhat_remote_api_on:
             response = furhat.listen()
@@ -176,6 +230,7 @@ class FurhatDrivingAssistant:
         # Q1:print("Furhat: Q1:")
         question1 = random.choice(self.extend_questions)
         furhat.say(text=question1, blocking=True)
+        furhat.gesture(name="Wink")
         print(question1)
         if self.furhat_remote_api_on:
             user_response1 = furhat.listen().message
@@ -185,6 +240,7 @@ class FurhatDrivingAssistant:
         # Q2:print("Furhat: Q2:")
         question2 = random.choice(self.extend_questions)
         furhat.say(text=question2, blocking=True)
+        furhat.gesture(name='Smile')
         print(question2)
         if self.furhat_remote_api_on:
             user_response2 = furhat.listen().message
@@ -195,8 +251,19 @@ class FurhatDrivingAssistant:
         conversation1 = "Question1: " + question1 + " Response1: " + user_response1
         conversation2 = "Question2: " + question2 + " Response2: " + user_response2
         # print(conversation1 + conversation2)
-        geminiResponse = self.chat.send_message([conversation1 + conversation2]).text.strip()
-
+        if self.gemini_on:
+            geminiResponse = self.chat.send_message([conversation1 + conversation2]).text.strip()
+        else:
+            geminiResponse ="""
+            {
+                "emotion_possibility": {
+                    "happy": 0.1,
+                    "calm": 0.3,
+                    "angry": 0.05,
+                    "sad": 0.55
+                }
+            }
+            """
         self.get_main_emotion(geminiResponse)
         
     def get_main_emotion(self, geminiResponse):
@@ -245,6 +312,7 @@ class FurhatDrivingAssistant:
     def askChangeMode(self):
         question = 'Do you want to change mood?'
         furhat.say(text=question, blocking=True)
+        furhat.gesture(body=self.customGesture)
         if self.furhat_remote_api_on:
             user_response = furhat.listen().message
         else:
@@ -254,7 +322,7 @@ class FurhatDrivingAssistant:
         # rule-based check
         rule_result = self.RULES.get(normalized_reply, None) # return None if there's no result
         return rule_result # True: change mood, False: Don't change
-    
+
 if __name__ == "__main__":
     assistant = FurhatDrivingAssistant()
     assistant.ask_mood()

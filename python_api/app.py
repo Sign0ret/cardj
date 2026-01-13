@@ -12,6 +12,13 @@ import image_emotion_detector
 from gemini_emotion_detection import FurhatDrivingAssistant
 from recommender import recommend_top_n
 
+import logging
+
+# Silence all standard Uvicorn and FastAPI loggers
+logging.getLogger("uvicorn.access").setLevel(logging.ERROR)
+logging.getLogger("uvicorn.error").setLevel(logging.ERROR)
+logging.getLogger("fastapi").setLevel(logging.ERROR)
+
 app = FastAPI()
 assistant = FurhatDrivingAssistant()
 
@@ -52,7 +59,7 @@ async def _random_dataset_loop(detector: ImageEmotionDetector, interval: float =
             # run blocking detection in thread pool
             state = await asyncio.to_thread(detector.capture_random_from_dataset)
             # optionally: log minimal info (no heavy printing)
-            print("dataset detection:", state.get("source"), file=os.sys.stdout)
+            # print("dataset detection:", state.get("source"), file=os.sys.stdout)
         except Exception as e:
             # don't crash loop; log and continue
             print("dataset loop error:", e, file=os.sys.stderr)
@@ -136,7 +143,7 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 def terminal_repl_loop(assistant: FurhatDrivingAssistant):
-    print("Terminal REPL started. Commands: ask | msg:<text> | confirmmsg:<text> | quit")
+    # print("Terminal REPL started. Commands: ask | msg:<text> | confirmmsg:<text> | quit")
     try:
         while True:
             try:
@@ -146,7 +153,7 @@ def terminal_repl_loop(assistant: FurhatDrivingAssistant):
             if not line:
                 continue
             if line == "quit":
-                print("Terminal REPL exiting.")
+                # print("Terminal REPL exiting.")
                 break
             if line == "ask":
                 # runs interactive flow (will prompt for Driver: inputs)
@@ -159,7 +166,7 @@ def terminal_repl_loop(assistant: FurhatDrivingAssistant):
                 text = line[len("msg:"):].strip()
                 try:
                     state = assistant.receive_user_text(text, confirm=False)
-                    print("Updated state:", state)
+                    # print("Updated state:", state)
                 except Exception as e:
                     print("receive_user_text error:", e, file=sys.stderr)
                 continue
@@ -167,11 +174,11 @@ def terminal_repl_loop(assistant: FurhatDrivingAssistant):
                 text = line[len("confirmmsg:"):].strip()
                 try:
                     state = assistant.receive_user_text(text, confirm=True)
-                    print("Updated state:", state)
+                    # print("Updated state:", state)
                 except Exception as e:
                     print("receive_user_text(confirm) error:", e, file=sys.stderr)
                 continue
-            print("Unknown command. Use: ask | msg:<text> | confirmmsg:<text> | quit")
+            # print("Unknown command. Use: ask | msg:<text> | confirmmsg:<text> | quit")
     except Exception as e:
         print("Terminal REPL fatal error:", e, file=sys.stderr)
 

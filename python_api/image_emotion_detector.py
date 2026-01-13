@@ -111,7 +111,7 @@ class ImageEmotionDetector:
         return the state. Raises FileNotFoundError if no images found.
         """
         base = os.path.dirname(__file__)
-        dataset_dir = os.path.join(base, "dataset", "images")
+        dataset_dir = os.path.join(base, "dataset", "Happy")
         if not os.path.isdir(dataset_dir):
             raise FileNotFoundError(f"Dataset directory not found: {dataset_dir}")
 
